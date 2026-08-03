@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>git log --author — profile explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14120F;
+    --surface:#1C1914;
+    --surface-2:#221E17;
+    --border:#332D22;
+    --border-strong:#453D2C;
+    --text:#F2ECE1;
+    --text-secondary:#A69D8A;
+    --text-muted:#6E6656;
+    --amber:#E8A33D;
+    --amber-dim:#7A5A28;
+    --add:#7FA65C;
+    --add-dim:#3E4E30;
+    --del:#C1573A;
+    --del-dim:#5A2E22;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:'IBM Plex Sans',sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+    padding:0 20px;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:56px 0 80px;}
+
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--text-muted);
+    letter-spacing:.04em;
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:34px;
+    margin:0 0 28px;
+    letter-spacing:-.01em;
+  }
+  h1 span{color:var(--amber);}
+
+  .terminal{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .terminal-bar{
+    display:flex;align-items:center;gap:6px;
+    padding:10px 14px;
+    border-bottom:1px solid var(--border);
+    background:var(--surface-2);
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--border-strong);}
+  .terminal-title{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;color:var(--text-muted);
+    margin-left:6px;
+  }
+  .terminal-body{
+    padding:18px 20px 20px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13.5px;
+  }
+  .prompt{color:var(--text-secondary);}
+  .prompt b{color:var(--amber);font-weight:500;}
+  #typed{color:var(--text);}
+  .cursor{display:inline-block;width:7px;height:15px;background:var(--amber);vertical-align:-2px;animation:blink 1s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+
+  form.searchrow{
+    display:flex;gap:8px;margin-top:14px;
+  }
+  form.searchrow .promptmark{
+    font-family:'IBM Plex Mono',monospace;color:var(--amber);
+    display:flex;align-items:center;font-size:13.5px;
+  }
+  input#username{
+    flex:1;
+    background:transparent;
+    border:none;
+    outline:none;
+    color:var(--text);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13.5px;
+    padding:6px 0;
+  }
+  input#username::placeholder{color:var(--text-muted);}
+  button#go{
+    background:transparent;
+    border:1px solid var(--border-strong);
+    color:var(--text-secondary);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    padding:6px 14px;
+    border-radius:5px;
+    cursor:pointer;
+  }
+  button#go:hover{border-color:var(--amber);color:var(--amber);}
+
+  #status{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    color:var(--text-muted);
+    margin-top:16px;
+    min-height:16px;
+  }
+  #status.err{color:var(--del);}
+
+  #profile{display:none;margin-top:40px;}
+
+  .profile-head{display:flex;gap:18px;align-items:center;margin-bottom:8px;}
+  .avatar{width:64px;height:64px;border-radius:8px;border:1px solid var(--border-strong);}
+  .pname{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:22px;margin:0;}
+  .plogin{font-family:'IBM Plex Mono',monospace;color:var(--text-muted);font-size:13px;margin:2px 0 0;}
+  .pbio{color:var(--text-secondary);font-size:14px;margin:14px 0 0;max-width:560px;}
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:var(--border);
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+    margin-top:24px;
+  }
+  .stat{background:var(--surface);padding:14px 16px;}
+  .stat-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);text-transform:lowercase;letter-spacing:.03em;}
+  .stat-value{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:600;margin-top:4px;}
+
+  .section-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;color:var(--text-muted);
+    margin:36px 0 12px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  .repos{display:flex;flex-direction:column;gap:10px;}
+  .repo{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px 18px;
+  }
+  .repo-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;}
+  .repo-name{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:14.5px;color:var(--amber);
+    text-decoration:none;
+  }
+  .repo-name:hover{text-decoration:underline;}
+  .repo-meta{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;color:var(--text-muted);
+    display:flex;gap:12px;white-space:nowrap;
+  }
+  .repo-desc{color:var(--text-secondary);font-size:13.5px;margin:8px 0 12px;}
+
+  .diffbar{
+    display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--surface-2);
+  }
+  .diffbar div{height:100%;}
+  .legend{
+    display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;
+  }
+  .legend-item{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;color:var(--text-muted);
+    display:flex;align-items:center;gap:5px;
+  }
+  .legend-swatch{width:8px;height:8px;border-radius:2px;}
+
+  footer{
+    margin-top:48px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--text-muted);
+  }
+  footer a{color:var(--text-secondary);}
+
+  @media(max-width:560px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+    h1{font-size:26px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">// github rest api — client-side fetch</p>
+  <h1>profile <span>explorer</span></h1>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="terminal-title">zsh</span>
+    </div>
+    <div class="terminal-body">
+      <div class="prompt"><b>arnav@github</b> ~ % <span id="typed"></span><span class="cursor" id="cursor"></span></div>
+
+      <form class="searchrow" id="searchForm">
+        <span class="promptmark">$</span>
+        <input id="username" type="text" placeholder="type a github username and hit enter" autocomplete="off">
+        <button id="go" type="submit">fetch</button>
+      </form>
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <div id="profile">
+    <div class="profile-head">
+      <img class="avatar" id="avatar" src="" alt="">
+      <div>
+        <p class="pname" id="pname"></p>
+        <p class="plogin" id="plogin"></p>
+      </div>
+    </div>
+    <p class="pbio" id="pbio"></p>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-label">repos</div><div class="stat-value" id="s-repos">—</div></div>
+      <div class="stat"><div class="stat-label">followers</div><div class="stat-value" id="s-followers">—</div></div>
+      <div class="stat"><div class="stat-label">following</div><div class="stat-value" id="s-following">—</div></div>
+      <div class="stat"><div class="stat-label">joined</div><div class="stat-value" id="s-joined">—</div></div>
+    </div>
+
+    <div class="section-label">top repositories, by stars</div>
+    <div class="repos" id="repos"></div>
+  </div>
+
+  <footer>
+    data fetched live from api.github.com &middot; unauthenticated requests are rate-limited to 60/hr per IP &middot;
+    view source on <a href="https://github.com/arnavarya001" target="_blank" rel="noopener">github.com/arnavarya001</a>
+  </footer>
+</div>
+
+<script>
+const LANG_COLORS = {
+  JavaScript:'#E8A33D', TypeScript:'#5B8FBF', Python:'#7FA65C', HTML:'#C1573A',
+  CSS:'#8A6BB5', 'Jupyter Notebook':'#D9822B', 'C++':'#B05C6E', C:'#8A8375',
+  Java:'#B4835A', Kotlin:'#9C6FBF', Shell:'#6E9E7A', EJS:'#B8944F'
+};
+const FALLBACK_COLORS = ['#E8A33D','#7FA65C','#5B8FBF','#C1573A','#8A6BB5','#B8944F'];
+function colorFor(lang, idx){ return LANG_COLORS[lang] || FALLBACK_COLORS[idx % FALLBACK_COLORS.length]; }
+
+function typeLine(text, el, cursorEl, done){
+  let i = 0;
+  el.textContent = '';
+  const iv = setInterval(() => {
+    el.textContent += text[i];
+    i++;
+    if(i >= text.length){ clearInterval(iv); if(done) done(); }
+  }, 28);
+}
+
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month:'short', year:'numeric' });
+}
+
+async function loadProfile(username){
+  const statusEl = document.getElementById('status');
+  const profileEl = document.getElementById('profile');
+  profileEl.style.display = 'none';
+  statusEl.className = '';
+  statusEl.textContent = `> fetching /users/${username} ...`;
+
+  try{
+    const uRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`);
+    if(uRes.status === 404){ throw new Error(`user "${username}" not found`); }
+    if(!uRes.ok){ throw new Error(`github api returned ${uRes.status}`); }
+    const user = await uRes.json();
+
+    const rRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated`);
+    if(!rRes.ok){ throw new Error(`github api returned ${rRes.status} on /repos`); }
+    let repos = await rRes.json();
+
+    repos = repos.filter(r => !r.fork).sort((a,b) => b.stargazers_count - a.stargazers_count).slice(0,6);
+
+    document.getElementById('avatar').src = user.avatar_url;
+    document.getElementById('pname').textContent = user.name || user.login;
+    document.getElementById('plogin').textContent = '@' + user.login;
+    document.getElementById('pbio').textContent = user.bio || '';
+    document.getElementById('pbio').style.display = user.bio ? 'block' : 'none';
+    document.getElementById('s-repos').textContent = user.public_repos;
+    document.getElementById('s-followers').textContent = user.followers;
+    document.getElementById('s-following').textContent = user.following;
+    document.getElementById('s-joined').textContent = fmtDate(user.created_at);
+
+    statusEl.textContent = `> fetching languages for ${repos.length} repos ...`;
+
+    const reposEl = document.getElementById('repos');
+    reposEl.innerHTML = '';
+
+    for(const repo of repos){
+      let langs = {};
+      try{
+        const lRes = await fetch(repo.languages_url);
+        if(lRes.ok) langs = await lRes.json();
+      }catch(e){ /* skip languages on failure */ }
+
+      const total = Object.values(langs).reduce((a,b) => a+b, 0);
+      const entries = Object.entries(langs).sort((a,b) => b[1]-a[1]).slice(0,5);
+
+      const card = document.createElement('div');
+      card.className = 'repo';
+
+      const bar = entries.length
+        ? `<div class="diffbar">${entries.map(([lang,bytes],i) => `<div style="width:${(bytes/total*100).toFixed(2)}%;background:${colorFor(lang,i)}"></div>`).join('')}</div>
+           <div class="legend">${entries.map(([lang,bytes],i) => `<span class="legend-item"><span class="legend-swatch" style="background:${colorFor(lang,i)}"></span>${lang} ${(bytes/total*100).toFixed(0)}%</span>`).join('')}</div>`
+        : `<div class="diffbar"><div style="width:100%;background:var(--border-strong)"></div></div>`;
+
+      card.innerHTML = `
+        <div class="repo-top">
+          <a class="repo-name" href="${repo.html_url}" target="_blank" rel="noopener">${repo.name}</a>
+          <div class="repo-meta">
+            <span>&#9733; ${repo.stargazers_count}</span>
+            <span>&#8892; ${repo.forks_count}</span>
+            <span>updated ${fmtDate(repo.updated_at)}</span>
+          </div>
+        </div>
+        ${repo.description ? `<div class="repo-desc">${repo.description}</div>` : ''}
+        ${bar}
+      `;
+      reposEl.appendChild(card);
+    }
+
+    statusEl.textContent = `> done — ${repos.length} repos loaded`;
+    profileEl.style.display = 'block';
+  }catch(err){
+    statusEl.className = 'err';
+    statusEl.textContent = `> error: ${err.message}`;
+  }
+}
+
+document.getElementById('searchForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const val = document.getElementById('username').value.trim();
+  if(val) loadProfile(val);
+});
+
+const DEFAULT_USER = 'arnavarya001';
+typeLine(`fetch --user ${DEFAULT_USER}`, document.getElementById('typed'), document.getElementById('cursor'), () => {
+  loadProfile(DEFAULT_USER);
+});
+</script>
+</body>
+</html>
