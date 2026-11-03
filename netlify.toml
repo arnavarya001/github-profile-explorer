@@ -1,0 +1,8 @@
+[build]
+  publish = "."
+
+# Keep the old URL working
+[[redirects]]
+  from = "/github-profile-explorer.html"
+  to = "/"
+  status = 301
